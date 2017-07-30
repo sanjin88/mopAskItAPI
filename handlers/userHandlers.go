@@ -2,48 +2,86 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 
-	"github.com/kataras/iris"
-	"github.com/kataras/iris/context"
+	jwt "github.com/dgrijalva/jwt-go"
+
+	"gopkg.in/kataras/iris.v6"
+
+	"github.com/mopAskItAPI/keys"
 	"github.com/mopAskItAPI/models"
 	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
-func Login(db *mgo.Database) context.Handler {
-	return func(ctx context.Context) {
-		models.Login(ctx)
+func Login(db *mgo.Database) iris.HandlerFunc {
+	return func(ctx *iris.Context) {
 
-				err := 	models.Login(ctx)
+		user := &models.UserCredentials{}
+
+		if err := ctx.ReadJSON(user); err != nil {
+			ctx.JSON(iris.StatusBadRequest, err.Error())
+			ctx.WriteString(err.Error())
+			return
+		}
+
+		existingUser := &models.User{}
+		err := db.C("users").Find(bson.M{"email": user.Email}).One(&existingUser)
+
+		if (models.User{}) == *existingUser {
+			ctx.JSON(iris.StatusBadRequest, "User not exists")
+			return
+		}
+		if user.Password != existingUser.Password {
+			ctx.JSON(iris.StatusForbidden, "Combination of email and password is not correct")
+			fmt.Println("Error logging in")
+			return
+		}
+
+		type MyCustomClaims struct {
+			jwt.StandardClaims
+		}
+
+		claims := MyCustomClaims{
+			jwt.StandardClaims{
+				ExpiresAt: 15000,
+				Issuer:    "user",
+			},
+		}
+
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		ss, err := token.SignedString(keys.SignKey)
+		fmt.Printf("%v %v", ss, err)
+
 		if err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
+			ctx.JSON(iris.StatusInternalServerError, "Error signing token")
+			log.Printf("Error signing token: %v\n", err)
+		}
+
+		response := models.Token{ss}
+		ctx.JSON(iris.StatusOK, response)
+	}
+}
+
+func GetUsers(db *mgo.Database) iris.HandlerFunc {
+	return func(ctx *iris.Context) {
+		err, users := models.GetUsers(db)
+		if err != nil {
+			ctx.JSON(iris.StatusBadRequest, "Failed to read request data")
 			ctx.WriteString(err.Error())
 		} else {
 			fmt.Println("Results All: ", users)
 		}
-		ctx.JSON(users)
-	}
-	}
-}
-
-func GetUsers(db *mgo.Database) context.Handler {
-	return func(ctx context.Context) {
-		err := models.GetUsers(ctx)
-		if err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
-			ctx.WriteString(err.Error())
-		} else {
-			fmt.Println("Results All: ", users)
-		}
-		ctx.JSON(users)
+		ctx.JSON(iris.StatusOK, users)
 	}
 }
 
-func CreateUser(db *mgo.Database) context.Handler {
-	return func(ctx context.Context) {
+func CreateUser(db *mgo.Database) iris.HandlerFunc {
+	return func(ctx *iris.Context) {
 		user := &models.User{}
 
 		if err := ctx.ReadJSON(user); err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
+			ctx.JSON(iris.StatusBadRequest, "Failed to read request data")
 			ctx.WriteString(err.Error())
 			return
 		}
@@ -54,22 +92,20 @@ func CreateUser(db *mgo.Database) context.Handler {
 			ctx.WriteString(err.Error())
 		} else {
 			fmt.Println("User created!")
-			ctx.StatusCode(iris.StatusCreated)
-			ctx.WriteString("User created!")
+			ctx.JSON(iris.StatusCreated, "User created")
 		}
 	}
 }
 
-func UpdateUser(db *mgo.Database) context.Handler {
-	return func(ctx context.Context) {
-
-		err := models.UpdateUser(ctx)
+func UpdateUser(db *mgo.Database) iris.HandlerFunc {
+	return func(ctx *iris.Context) {
+		err, users := models.UpdateUser(db)
 		if err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
+			ctx.JSON(iris.StatusBadRequest, "Failed to read request data")
 			ctx.WriteString(err.Error())
 		} else {
 			fmt.Println("Results All: ", users)
 		}
-		ctx.JSON(users)
+		ctx.JSON(iris.StatusOK, users)
 	}
 }

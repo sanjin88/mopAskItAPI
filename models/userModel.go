@@ -13,30 +13,37 @@ type User struct {
 	Password  string        `json:"password"`
 }
 
-func GetUsers(db *mgo.Database) error {
+type UserCredentials struct {
+	Email     string        `json:"email"`
+	Password  string        `json:"password"`
+}
+
+type Token struct {
+	Token string `json:"token"`
+}
+
+func GetUsers(db *mgo.Database) (error, []User) {
 
 	users := []User{}
 	err := db.C("users").Find(nil).All(&users)
-	return err
+	if err != nil {
+		panic(err)
+	}
+	return nil, users
 }
 
-func Login(db *mgo.Database) error {
-
-	users := []User{}
-	err := db.C("users").Find(nil).All(&users)
-	return err
-}
-
-func CreateUser(db *mgo.Database, user User) error {
+func CreateUser(db *mgo.Database, user *User) error {
 	err := db.C("users").Insert(user)
 	return err
 }
 
-func UpdateUser(db *mgo.Database) error {
+func UpdateUser(db *mgo.Database) (error, []User) {
 
 	users := []User{}
-
 	err := db.C("users").Find(nil).All(&users)
-	return err
+	if err != nil {
+		panic(err)
+	}
+	return nil, users
 
 }
