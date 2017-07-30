@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/mopAskItAPI/handlers"
-	"github.com/mopAskItAPI/models"
 
 	mgo "gopkg.in/mgo.v2"
 
@@ -43,25 +40,14 @@ func main() {
 		ctx.Next()
 	})
 
-	app.Get("/users", userHandlers.GetUsers(database))
+	app.Post("/users/login", handlers.Login(database))
+	app.Post("/users", handlers.CreateUser(database))
+	app.Put("/users/{userId: path}", handlers.UpdateUser(database))
 
-	app.Post("/users", func(ctx context.Context) {
+	app.Get("/questions", handlers.GetQuestions(database))
+	app.Post("/questions", handlers.SaveQuestion(database))
+	app.Post("/questions/{questionId: string}/vote", handlers.VoteQuestion(database))
+	app.Post("/questions/{questionId: string}/response", handlers.ResponseOnQuestion(database))
 
-		user := &userModel.User{}
-		if err := ctx.ReadJSON(user); err != nil {
-			ctx.StatusCode(iris.StatusBadRequest)
-			ctx.WriteString(err.Error())
-			return
-		}
-
-		err := database.C("users").Insert(user)
-		if err != nil {
-			ctx.WriteString(err.Error())
-		} else {
-			fmt.Println("User created!")
-			ctx.StatusCode(iris.StatusCreated)
-			ctx.WriteString("User created!")
-		}
-	})
 	app.Run(iris.Addr(":8080"))
 }
