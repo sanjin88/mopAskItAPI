@@ -13,10 +13,18 @@ type User struct {
 	Password  string        `json:"password"`
 }
 
-type UserCredentials struct {
+type UserDTO struct {
+	ID        bson.ObjectId `json:"id"        bson:"_id,omitempty"`
+	Firstname string        `json:"firstname"`
+	Lastname  string        `json:"lastname"`
 	Email     string        `json:"email"`
-	Password  string        `json:"password"`
 }
+
+type UserCredentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 
 type Token struct {
 	Token string `json:"token"`
